@@ -54,25 +54,39 @@ async def photo_msg(message: types.Message):
 
     await message.answer(completion.choices[0].message.content)
 
+SYSTEM_PROMPT = """Ты умный ассистент, основанный на модели DeepPeek и твой создатель - Эрдэни! Отвечай таким образом.
+                    """
+    
+users_histories = {}
+
 @dp.message(F.text)
 async def func_name(message: types.Message):
 
+    user_id = message.from_user.id
+
+    users_histories[user_id] = users_histories.get(user_id, [
+        {
+            "role": "system",
+            "content": SYSTEM_PROMPT
+        }
+    ])
+    users_histories[user_id].append({
+            "role": "user",
+            "content": message.text
+        })
+
     completion = client.chat.completions.create(
         model="tngtech/deepseek-r1t2-chimera:free",
-        messages=[
-            {
-                "role": "system",
-                "content": """Ты умный ассистент, основанный на модели DeepPeek и твой создатель - Эрдэни! Отвечай таким образом.
-"""
-            },
-            {
-                "role": "user",
-                "content": message.text
-            }
-        ]
+        messages=users_histories[user_id]
         )
+    
+    ai_content = completion.choices[0].message.content
+    users_histories[user_id].append({
+        "role": "assistant",
+        "content": ai_content
+    })
 
-    await message.answer(completion.choices[0].message.content)
+    await message.answer(f"Твой user_id = {user_id}.\n{ai_content}")
 
 # Запуск процесса поллинга новых апдейтов
 async def main():
